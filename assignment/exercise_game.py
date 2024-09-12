@@ -7,6 +7,7 @@ import time
 import random
 import json
 
+import requests
 
 N: int = 3
 sample_ms = 10.0
