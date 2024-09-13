@@ -20,19 +20,21 @@ sample_ms = 10.0
 on_ms = 500
 
 def send_webhook_req(data):
-    headers = {'Content-Type': 'application/xml'}
+    headers = {'Content-Type': 'application/json'}
     url = "https://webhook.site/ed5374e1-bb47-4cb5-abf3-e69995d3a140"
-    
+   
     # webhook.site doesn't take jsons - use xml instead
     data_xml = """<?xml version="1.0" encoding="UTF-8"?>
     <data>
-        <average_time>data['avg_time']</average_time>
-        <minimum_time>data['min_time']</minimum_time>
-        <maximum_time>data['max_time']</maximum_time>
+        <average_time>{data['avg_time']}</average_time>
+        <minimum_time>{data['min_time']}</minimum_time>
+        <maximum_time>{data['max_time']}</maximum_time>
     </data>
-    """    
+    """
+   
+    data_json = json.dumps(data)
     try:
-        response = requests.post(url, data=data_xml, headers=headers)
+        response = requests.post(url, data=data_json, headers=headers)
         print(f"Post request response: {response.status_code}")
         #print(f"Response text: {response.text}")
         response.close()
@@ -41,7 +43,7 @@ def send_webhook_req(data):
 
 def connect_to_wifi():
     wlan = network.WLAN(network.STA_IF)
-    
+   
     wlan.active(True)
     ssid = "BU Guest (unencrypted)"
     #ssid = "Cameron"
@@ -112,32 +114,32 @@ def scorer(t: list[int | None]) -> None:
     # add key, value to this dict to store the minimum, maximum, average response time
     # and score (non-misses / total flashes) i.e. the score a floating point number
     # is in range [0..1]
-    
-    
+   
+   
     # START OF CODE
     if t_good:
         avg_time = sum(t_good) / len(t_good)
         min_time = min(t_good)
         max_time = max(t_good)
-        
+       
     if len(t) > 0:
         score = (len(t_good) / len(t))
     else: score = 0
-    
+   
     data = {
         "average_time": avg_time,
         "minimum_time": min_time,
         "maximum_time": max_time
         }
-    
+   
     print(data)
-    
+   
     # function to post data to web host
     send_webhook_req(data)
-    
+   
     # END OF CODE
-    
-    
+   
+   
     # %% make dynamic filename and write JSON
 
     now: tuple[int] = time.localtime()
@@ -155,7 +157,7 @@ if __name__ == "__main__":
 
     led = Pin("LED", Pin.OUT)
     button = Pin(16, Pin.IN, Pin.PULL_UP)
-    
+   
     connect_to_wifi()
 
     t: list[int | None] = []
@@ -181,4 +183,3 @@ if __name__ == "__main__":
     blinker(5, led)
 
     scorer(t)
-
