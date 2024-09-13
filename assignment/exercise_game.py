@@ -1,18 +1,72 @@
 """
 Response time - single-threaded
 """
-
+import mip
+mip.install("urequests")
+import requests
+# tried hard to implement into firebase - wrong approach:
+    #import micropython-firebase-firestore
+    #mip.install("github:WoolDoughnut310/micropython-firebase-firestore")
+    #mip.install("firebase")
+    #mip.install("firebase_firestore")
+import network
 from machine import Pin
 import time
 import random
 import json
 
-import requests
-
-N: int = 3
+N: int = 10 #CHANGE
 sample_ms = 10.0
 on_ms = 500
 
+def send_webhook_req(data):
+    headers = {'Content-Type': 'application/xml'}
+    url = "https://webhook.site/ed5374e1-bb47-4cb5-abf3-e69995d3a140"
+    
+    # webhook.site doesn't take jsons - use xml instead
+    data_xml = """<?xml version="1.0" encoding="UTF-8"?>
+    <data>
+        <average_time>data['avg_time']</average_time>
+        <minimum_time>data['min_time']</minimum_time>
+        <maximum_time>data['max_time']</maximum_time>
+    </data>
+    """    
+    try:
+        response = requests.post(url, data=data_xml, headers=headers)
+        print(f"Post request response: {response.status_code}")
+        #print(f"Response text: {response.text}")
+        response.close()
+    except Exception as e:
+        print(f"Failed to send data: {e}")
+
+def connect_to_wifi():
+    wlan = network.WLAN(network.STA_IF)
+    
+    wlan.active(True)
+    ssid = "BU Guest (unencrypted)"
+    #ssid = "Cameron"
+    # scan for networks and check if the desired SSID is available
+    available_networks = wlan.scan()
+    for net in available_networks:
+        if ssid in net[0].decode():
+            print(f"Connecting to network: {ssid}")
+            # connect to open network
+            wlan.connect(ssid)
+
+            timeout = 10  # in seconds
+            while timeout > 0:
+                if wlan.isconnected():
+                    print(f"Connected to {ssid}")
+                    print("Network config:", wlan.ifconfig())
+                    return wlan
+                time.sleep(1)
+                timeout -= 1
+
+            print(f"Failed to connect to {ssid} within timeout period.")
+            return None
+
+    print(f"Network {ssid} not found.")
+    return None
 
 def random_time_interval(tmin: float, tmax: float) -> float:
     """return a random time interval between max and min"""
@@ -59,7 +113,8 @@ def scorer(t: list[int | None]) -> None:
     # and score (non-misses / total flashes) i.e. the score a floating point number
     # is in range [0..1]
     
-        # START OF CODE
+    
+    # START OF CODE
     if t_good:
         avg_time = sum(t_good) / len(t_good)
         min_time = min(t_good)
@@ -72,12 +127,17 @@ def scorer(t: list[int | None]) -> None:
     data = {
         "average_time": avg_time,
         "minimum_time": min_time,
-        "maximum_time": max_time,
-        "score": score,
-        "misses": misses
+        "maximum_time": max_time
         }
+    
+    print(data)
+    
+    # function to post data to web host
+    send_webhook_req(data)
+    
     # END OF CODE
-
+    
+    
     # %% make dynamic filename and write JSON
 
     now: tuple[int] = time.localtime()
@@ -95,6 +155,8 @@ if __name__ == "__main__":
 
     led = Pin("LED", Pin.OUT)
     button = Pin(16, Pin.IN, Pin.PULL_UP)
+    
+    connect_to_wifi()
 
     t: list[int | None] = []
 
@@ -119,3 +181,4 @@ if __name__ == "__main__":
     blinker(5, led)
 
     scorer(t)
+
